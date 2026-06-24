@@ -54,7 +54,7 @@
 
         async function createRoom() {
             try {
-                let response = await fetch('/create_room', { method: 'POST' });
+                let response = await fetch('/create_room');
                 let data = await response.json();
                 if (data.room_code) {
                     connectToRoom(data.room_code);
