@@ -52,19 +52,24 @@
             document.getElementById(screenId).classList.add('active');
         }
 
-        async function createRoom() {
+       async function createRoom() {
             try {
-                let response = await fetch('/create_room');
+                let response = await fetch('/create_room', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
                 let data = await response.json();
                 if (data.room_code) {
                     connectToRoom(data.room_code);
+                } else {
+                    alert("Сервер не вернул код комнаты");
                 }
             } catch (err) {
-                // Если сервер спит или туннель упал, пробуем подключиться напрямую по случайному коду
-                connectToRoom(String(Math.floor(1000 + Math.random() * 9000)));
+                alert("Ошибка запроса: " + err.message);
             }
         }
-
         async function joinRoom() {
             const code = document.getElementById('room-code-input').value.trim();
             if (!code) return alert("Введите код!");
