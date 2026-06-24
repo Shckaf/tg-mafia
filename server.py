@@ -79,7 +79,7 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
                 "players": room["players"]
             })
 
-@app.post("/create_room")
+@app.get("/create_room")
 async def create_room():
     room_code = str(random.randint(1000, 9999))
     while room_code in ROOMS:
