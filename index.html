@@ -52,25 +52,13 @@
             document.getElementById(screenId).classList.add('active');
         }
 
-       async function createRoom() {
-            try {
-                let response = await fetch('/create_room', { 
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                let data = await response.json();
-                if (data.room_code) {
-                    connectToRoom(data.room_code);
-                } else {
-                    alert("Сервер не вернул код комнаты");
-                }
-            } catch (err) {
-                alert("Ошибка запроса: " + err.message);
-            }
+        // Генерируем код комнаты прямо на клиенте, убирая лишние запросы к API
+        function createRoom() {
+            const generatedCode = String(Math.floor(1000 + Math.random() * 9000));
+            connectToRoom(generatedCode);
         }
-        async function joinRoom() {
+
+        function joinRoom() {
             const code = document.getElementById('room-code-input').value.trim();
             if (!code) return alert("Введите код!");
             connectToRoom(code);
@@ -80,7 +68,9 @@
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws/${code}/${playerName}`;
 
-            if (ws) { ws.close(); }
+            if (ws) { 
+                try { ws.close(); } catch(e) {} 
+            }
 
             ws = new WebSocket(wsUrl);
 
@@ -90,35 +80,47 @@
             };
 
             ws.onmessage = (event) => {
-                const message = JSON.parse(event.data);
-                
-                if (message.action === 'update_players') {
-                    const container = document.getElementById('players-container');
-                    container.innerHTML = '';
-                    message.players.forEach(name => {
-                        container.innerHTML += `<p>• ${name}</p>`;
-                    });
-                }
+                try {
+                    const message = JSON.parse(event.data);
+                    
+                    if (message.action === 'update_players') {
+                        const container = document.getElementById('players-container');
+                        container.innerHTML = '';
+                        message.players.forEach(name => {
+                            container.innerHTML += `<p>• ${name}</p>`;
+                        });
+                    }
 
-                if (message.action === 'game_started') {
-                    document.getElementById('screen-lobby').innerHTML = `
-                        <h2>🎲 ИГРА НАЧАЛАСЬ!</h2>
-                        <div style="background: #222; padding: 30px; border-radius: 8px; margin-top: 20px;">
-                            <p style="font-size: 18px;">Твоя тайная роль:</p>
-                            <h1 style="color: #e50914; font-size: 36px;">${message.role}</h1>
-                        </div>
-                        <p style="margin-top: 20px; color: #aaa;">Наступает ночь...</p>
-                    `;
-                }
+                    if (message.action === 'game_started') {
+                        document.getElementById('screen-lobby').innerHTML = `
+                            <h2>🎲 ИГРА НАЧАЛАСЬ!</h2>
+                            <div style="background: #222; padding: 30px; border-radius: 8px; margin-top: 20px;">
+                                <p style="font-size: 18px;">Твоя тайная роль:</p>
+                                <h1 style="color: #e50914; font-size: 36px;">${message.role}</h1>
+                            </div>
+                            <p style="margin-top: 20px; color: #aaa;">Наступает ночь...</p>
+                        `;
+                    }
 
-                if (message.action === 'error') {
-                    alert(message.message);
+                    if (message.action === 'error') {
+                        alert(message.message);
+                    }
+                } catch (e) {
+                    console.log("Ошибка парсинга:", e);
                 }
             };
 
+            ws.onerror = (error) => {
+                console.error("Ошибка сокета:", error);
+            };
+
             ws.onclose = () => {
-                // Автоматический перезапуск соединения при сбое сети
-                setTimeout(() => connectToRoom(code), 2000);
+                // Если произошел сброс, плавно пытаемся восстановить соединение через 3 секунды
+                setTimeout(() => {
+                    if (document.getElementById('screen-lobby').classList.contains('active')) {
+                        connectToRoom(code);
+                    }
+                }, 3000);
             };
         }
 
